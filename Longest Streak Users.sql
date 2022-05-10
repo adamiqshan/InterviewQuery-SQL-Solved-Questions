@@ -136,26 +136,28 @@ insert into events values
 
 
 with ranking as (
+    -- adding ranks to distinct user, created_at
     select user_id, created_at, rank() over(partition by user_id order by               created_at) rank
     from events
     group by user_id, created_at
 ),
 diff as (
+    -- subtracting created_at from ranks to find series of login streaks
     select user_id, date([created_at], '-'||[rank]||' day') date_diff
     from ranking
 ),
 user_visits as (
-    select user_id, max(streaks) streak_length
-    from (
-        select user_id, count(date_diff) as streaks
-        from diff
-        group by user_id, date_diff
-    ) x
-    group by user_id
+    -- finding consecutive login lengths of users
+    select user_id, count(date_diff) as streak_length
+    from diff
+    group by user_id, date_diff
 )
+
 
 select user_id, streak_length
 from (
+    --adding ranks to filter top 5 login_streaks which can be 
+    -- later filtered in outer query
     select user_id,streak_length, dense_rank() over(order by streak_length desc)        streak_rank
 from user_visits
 )
